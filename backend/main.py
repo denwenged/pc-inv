@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+# backend/main.py completo
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 import models, auth, database
 from database import engine, get_db
@@ -11,103 +12,73 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ESTO CREA EL ADMIN AUTOMÁTICAMENTE AL ARRANCAR
+@app.on_event("startup")
+def startup_event():
+    db = database.SessionLocal()
+    admin_exists = db.query(models.User).filter(models.User.username == "admin").first()
+    if not admin_exists:
+        hashed_pw = auth.get_password_hash("admin1234") # CONTRASEÑA POR DEFECTO
+        new_admin = models.User(username="admin", hashed_password=hashed_pw, is_admin=True)
+        db.add(new_admin)
+        db.commit()
+        print("Usuario admin creado por defecto: admin / admin1234")
+    db.close()
 
-@app.post("/register")
-def register(username: str, password: str, db: Session = Depends(get_db)):
-    existing_user = db.query(models.User).filter(models.User.username == username).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="El usuario ya existe")
-    
-    hashed = auth.get_password_hash(password)
-    new_user = models.User(username=username, hashed_password=hashed)
-    db.add(new_user)
-    db.commit()
-    return {"message": "Usuario creado correctamente"}
-
+# --- RUTAS --- (Mantenemos las anteriores)
 @app.post("/login")
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == username).first()
     if not user or not auth.verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
-    
-    access_token = auth.create_access_token(data={"sub": user.username})
-    return {"token": access_token, "type": "bearer"}
+        raise HTTPException(status_code=400, detail="Error")
+    return {"token": auth.create_access_token(data={"sub": user.username}), "type": "bearer"}
 
+@app.get("/components/available")
+def get_available(db: Session = Depends(get_db)):
+    return db.query(models.Component).filter(models.Component.status == "available").all()
 
 @app.post("/components/add-bulk")
 def add_bulk(name: str, category: str, quantity: int, price_per_unit: float, db: Session = Depends(get_db)):
-    """Añade varios componentes iguales, cada uno con su propio registro de precio"""
     for _ in range(quantity):
-        item = models.Component(name=name, category=category, purchase_price=price_per_unit)
-        db.add(item)
+        db.add(models.Component(name=name, category=category, purchase_price=price_per_unit))
     db.commit()
-    return {"message": f"Se han añadido {quantity} unidades de {name}"}
+    return {"message": "Añadidos"}
 
 @app.post("/components/add-bundle")
 def add_bundle(names: List[str], total_price: float, db: Session = Depends(get_db)):
-    """Añade un pack de piezas y divide el coste total entre ellas"""
-    if not names:
-        raise HTTPException(status_code=400, detail="La lista de nombres está vacía")
-    
     price_each = total_price / len(names)
     for name in names:
-        item = models.Component(name=name, category="Bundle Item", purchase_price=price_each)
-        db.add(item)
+        db.add(models.Component(name=name, category="Bundle Item", purchase_price=price_each))
     db.commit()
-    return {"message": "Bundle añadido y precio repartido equitativamente"}
-
-@app.get("/components/available")
-def get_available_components(db: Session = Depends(get_db)):
-    """Lista solo los componentes que están en stock (no montados)"""
-    return db.query(models.Component).filter(models.Component.status == "available").all()
-
+    return {"message": "Bundle añadido"}
 
 @app.post("/pc/assemble")
 def assemble_pc(pc_name: str, component_ids: List[int], db: Session = Depends(get_db)):
-    """Crea un PC a partir de componentes seleccionados del stock"""
     items = db.query(models.Component).filter(models.Component.id.in_(component_ids)).all()
-    
-    if not items:
-        raise HTTPException(status_code=404, detail="No se seleccionaron componentes válidos")
-
-    coste_total_pc = sum(item.purchase_price for item in items)
-    
-    nuevo_pc = models.AssembledPC(name=pc_name, total_cost=coste_total_pc)
-    db.add(nuevo_pc)
-    db.flush() 
-    
-    for item in items:
-        item.status = "assembled"
-        item.assembled_pc_id = nuevo_pc.id
-    
+    cost = sum(i.purchase_price for i in items)
+    new_pc = models.AssembledPC(name=pc_name, total_cost=cost)
+    db.add(new_pc)
+    db.flush()
+    for i in items:
+        i.status = "assembled"
+        i.assembled_pc_id = new_pc.id
     db.commit()
-    return {"message": "PC Montado con éxito", "id": nuevo_pc.id, "coste_total": coste_total_pc}
+    return {"id": new_pc.id}
 
 @app.get("/pcs-all")
-def get_all_pcs(db: Session = Depends(get_db)):
-    """Lista todos los PCs montados (vendidos y no vendidos)"""
+def get_pcs(db: Session = Depends(get_db)):
     return db.query(models.AssembledPC).all()
 
 @app.post("/pc/sell/{pc_id}")
 def sell_pc(pc_id: int, final_price: float, db: Session = Depends(get_db)):
-    """Marca un PC como vendido y calcula el beneficio"""
     pc = db.query(models.AssembledPC).filter(models.AssembledPC.id == pc_id).first()
-    if not pc:
-        raise HTTPException(status_code=404, detail="PC no encontrado")
-    
     pc.sale_price = final_price
     pc.is_sold = True
-    pc.profit = final_price - pc.total_cost # Beneficio neto
-    
+    pc.profit = final_price - pc.total_cost
     db.commit()
-    return {
-        "status": "Vendido",
-        "beneficio_neto": pc.profit,
-        "coste_total": pc.total_cost
-    }
+    return {"profit": pc.profit}
