@@ -5,7 +5,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import os
 
-SECRET_KEY = "UNA_CLAVE_MUY_SECRETA_CAMBIAME"
+# Lee la clave de la variable de entorno, si no existe usa una por defecto
+SECRET_KEY = os.getenv("JWT_SECRET", "clave_super_secreta_por_defecto_123")
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")

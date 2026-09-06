@@ -17,17 +17,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ESTO CREA EL ADMIN AUTOMÁTICAMENTE AL ARRANCAR
 @app.on_event("startup")
 def startup_event():
     db = database.SessionLocal()
-    admin_exists = db.query(models.User).filter(models.User.username == "admin").first()
+    # Leemos de las variables de entorno
+    env_admin = os.getenv("ADMIN_USER", "admin")
+    env_pass = os.getenv("ADMIN_PASSWORD", "admin1234")
+    
+    admin_exists = db.query(models.User).filter(models.User.username == env_admin).first()
     if not admin_exists:
-        hashed_pw = auth.get_password_hash("admin1234") # CONTRASEÑA POR DEFECTO
-        new_admin = models.User(username="admin", hashed_password=hashed_pw, is_admin=True)
+        hashed_pw = auth.get_password_hash(env_pass)
+        new_admin = models.User(username=env_admin, hashed_password=hashed_pw, is_admin=True)
         db.add(new_admin)
         db.commit()
-        print("Usuario admin creado por defecto: admin / admin1234")
     db.close()
 
 # --- RUTAS --- (Mantenemos las anteriores)
