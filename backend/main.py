@@ -1,4 +1,4 @@
-# backend/main.py completo
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 import models, auth, database
