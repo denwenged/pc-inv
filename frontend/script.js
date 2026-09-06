@@ -1,7 +1,6 @@
-const API_URL = "http://localhost:8000"; // En ZimaOS cámbialo si es necesario
+const API_URL = `http://${window.location.hostname}:8000`;
 let TOKEN = "";
 
-// --- LOGIN ---
 async function login() {
     const user = document.getElementById('username').value;
     const pass = document.getElementById('password').value;

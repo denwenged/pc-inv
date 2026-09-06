@@ -5,25 +5,21 @@ from database import engine, get_db
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 
-# Crea las tablas en la base de datos al arrancar
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Configuración de CORS para que el frontend pueda hablar con el backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # En producción podrías poner la IP de tu ZimaOS
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- RUTAS DE USUARIO Y SEGURIDAD ---
 
 @app.post("/register")
 def register(username: str, password: str, db: Session = Depends(get_db)):
-    # Comprobar si el usuario ya existe
     existing_user = db.query(models.User).filter(models.User.username == username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="El usuario ya existe")
@@ -43,7 +39,6 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
     access_token = auth.create_access_token(data={"sub": user.username})
     return {"token": access_token, "type": "bearer"}
 
-# --- RUTAS DE INVENTARIO (COMPONENTES) ---
 
 @app.post("/components/add-bulk")
 def add_bulk(name: str, category: str, quantity: int, price_per_unit: float, db: Session = Depends(get_db)):
@@ -72,7 +67,6 @@ def get_available_components(db: Session = Depends(get_db)):
     """Lista solo los componentes que están en stock (no montados)"""
     return db.query(models.Component).filter(models.Component.status == "available").all()
 
-# --- RUTAS DE MONTAJE Y VENTAS ---
 
 @app.post("/pc/assemble")
 def assemble_pc(pc_name: str, component_ids: List[int], db: Session = Depends(get_db)):
@@ -82,14 +76,12 @@ def assemble_pc(pc_name: str, component_ids: List[int], db: Session = Depends(ge
     if not items:
         raise HTTPException(status_code=404, detail="No se seleccionaron componentes válidos")
 
-    # Calculamos el coste total del PC sumando lo que pagaste por cada pieza
     coste_total_pc = sum(item.purchase_price for item in items)
     
     nuevo_pc = models.AssembledPC(name=pc_name, total_cost=coste_total_pc)
     db.add(nuevo_pc)
-    db.flush() # Para obtener el ID del PC antes del commit final
+    db.flush() 
     
-    # Marcamos los componentes como usados en este PC
     for item in items:
         item.status = "assembled"
         item.assembled_pc_id = nuevo_pc.id

@@ -9,7 +9,6 @@
 </head>
 <body class="bg-gray-100 font-sans">
 
-    <!-- LOGIN MODAL -->
     <div id="login-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-96">
             <h2 class="text-2xl font-bold mb-6 text-center text-blue-600">Gestión de Inventario</h2>
@@ -19,7 +18,6 @@
         </div>
     </div>
 
-    <!-- MAIN APP (Oculta hasta el login) -->
     <div id="app" class="hidden">
         <nav class="bg-blue-700 text-white p-4 shadow-lg">
             <div class="container mx-auto flex justify-between items-center">
@@ -35,10 +33,8 @@
 
         <main class="container mx-auto p-6">
             
-            <!-- SECCIÓN: AÑADIR COMPONENTES -->
             <section id="inventario" class="section">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Formulario Individual/Bulk -->
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h2 class="text-lg font-bold mb-4">Añadir Componente (Individual o Lote)</h2>
                         <div class="space-y-3">
@@ -55,7 +51,6 @@
                         </div>
                     </div>
 
-                    <!-- Formulario Bundle -->
                     <div class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
                         <h2 class="text-lg font-bold mb-4">Añadir Pack (Bundle)</h2>
                         <p class="text-xs text-gray-500 mb-2 italic">Ejemplo: Compras Placa + CPU + RAM por un precio total.</p>
@@ -65,7 +60,6 @@
                     </div>
                 </div>
 
-                <!-- Tabla de Stock -->
                 <div class="mt-8 bg-white p-6 rounded-lg shadow">
                     <h2 class="text-lg font-bold mb-4">Stock Disponible</h2>
                     <div class="overflow-x-auto">
